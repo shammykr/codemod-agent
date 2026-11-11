@@ -59,4 +59,6 @@ def check_patch(root: Path, patch: str) -> str | None:
         )
     except FileNotFoundError:
         return "git not installed"
-    return proc.stderr.strip() or None if proc.returncode else None
+    if proc.returncode:
+        return proc.stderr.strip() or "git apply --check failed"
+    return None
