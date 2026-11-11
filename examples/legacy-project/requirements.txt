@@ -1,0 +1,4 @@
+requests==2.19.0
+flask==0.12.2
+six==1.11.0
+PyYAML==5.1
