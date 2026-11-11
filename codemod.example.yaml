@@ -1,0 +1,18 @@
+# Copy to <project>/codemod.yaml (or pass --config). All keys are optional.
+llm:
+  provider: mock            # "mock" runs offline; "openai" calls an OpenAI-compatible API
+  base_url: https://api.openai.com/v1   # any OpenAI-compatible endpoint (vLLM, Ollama, Azure, ...)
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY           # name of the env var holding the key
+  temperature: 0.0
+  timeout: 60
+
+analysis:
+  tracked_only: true        # inside a git repo, only analyze files tracked by git
+  exclude: ["**/vendor/**"]
+  disabled_rules: []        # e.g. [JS002, PY001]
+  min_severity: low         # low | medium | high
+
+build:
+  test_command: null        # e.g. "pytest -q" or "npm test"; run after each change
+  timeout: 600
