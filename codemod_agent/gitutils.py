@@ -8,9 +8,7 @@ from pathlib import Path
 
 def _git(args: list[str], cwd: Path) -> str | None:
     try:
-        proc = subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, check=False
-        )
+        proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
     except FileNotFoundError:  # git not installed
         return None
     if proc.returncode != 0:
@@ -55,7 +53,11 @@ def check_patch(root: Path, patch: str) -> str | None:
     try:
         proc = subprocess.run(
             ["git", "apply", "--check", "-"],
-            cwd=root, input=patch, capture_output=True, text=True, check=False,
+            cwd=root,
+            input=patch,
+            capture_output=True,
+            text=True,
+            check=False,
         )
     except FileNotFoundError:
         return "git not installed"

@@ -35,15 +35,19 @@ def common_options[F: Callable[..., Any]](func: F) -> F:
             "path", type=click.Path(exists=True, file_okay=False, path_type=Path), default="."
         ),
         click.option(
-            "--config", "config_path", type=click.Path(exists=True, path_type=Path),
+            "--config",
+            "config_path",
+            type=click.Path(exists=True, path_type=Path),
             help="Config file (default: <path>/codemod.yaml if present).",
         ),
         click.option(
-            "--all-files", is_flag=True,
+            "--all-files",
+            is_flag=True,
             help="Analyze every file, not only files tracked by git.",
         ),
         click.option(
-            "--min-severity", type=click.Choice([s.value for s in Severity]),
+            "--min-severity",
+            type=click.Choice([s.value for s in Severity]),
             help="Ignore findings below this severity.",
         ),
     ]
@@ -92,8 +96,12 @@ def main(verbose: bool) -> None:
 @click.option("--format", "fmt", type=click.Choice(["text", "json", "yaml"]), default="text")
 @click.option("-o", "--output", type=click.Path(path_type=Path))
 def scan(
-    path: Path, config_path: Path | None, all_files: bool, min_severity: str | None,
-    fmt: str, output: Path | None,
+    path: Path,
+    config_path: Path | None,
+    all_files: bool,
+    min_severity: str | None,
+    fmt: str,
+    output: Path | None,
 ) -> None:
     """Build the dependency and API-usage inventory of PATH."""
     _, project, inventory, _ = _analyze(path, config_path, all_files, min_severity)
@@ -127,8 +135,12 @@ def scan(
 @click.option("--format", "fmt", type=click.Choice(["yaml", "json"]), default="yaml")
 @click.option("-o", "--output", type=click.Path(path_type=Path), help="Write plan to a file.")
 def plan(
-    path: Path, config_path: Path | None, all_files: bool, min_severity: str | None,
-    fmt: str, output: Path | None,
+    path: Path,
+    config_path: Path | None,
+    all_files: bool,
+    min_severity: str | None,
+    fmt: str,
+    output: Path | None,
 ) -> None:
     """Detect modernization opportunities and emit a structured upgrade plan."""
     _, _, inventory, findings = _analyze(path, config_path, all_files, min_severity)
@@ -137,17 +149,30 @@ def plan(
 
 @main.command()
 @common_options
-@click.option("-o", "--output", type=click.Path(path_type=Path), default=Path("codemod.patch"),
-              show_default=True, help="Where to write the unified diff.")
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    default=Path("codemod.patch"),
+    show_default=True,
+    help="Where to write the unified diff.",
+)
 @click.option("--report", type=click.Path(path_type=Path), help="Write a JSON per-change report.")
 @click.option("--test-cmd", help="Build/test command to run after each change (e.g. 'pytest').")
 @click.option("--provider", type=click.Choice(["mock", "openai"]), help="Override llm.provider.")
 @click.option("--rule", "rules", multiple=True, help="Only generate changes for these rule ids.")
 @click.option("--write", is_flag=True, help="Leave accepted changes applied to the working tree.")
 def generate(
-    path: Path, config_path: Path | None, all_files: bool, min_severity: str | None,
-    output: Path, report: Path | None, test_cmd: str | None, provider: str | None,
-    rules: tuple[str, ...], write: bool,
+    path: Path,
+    config_path: Path | None,
+    all_files: bool,
+    min_severity: str | None,
+    output: Path,
+    report: Path | None,
+    test_cmd: str | None,
+    provider: str | None,
+    rules: tuple[str, ...],
+    write: bool,
 ) -> None:
     """Generate, validate and verify changes; output them as a git-applicable patch."""
     cfg, project, _, findings = _analyze(path, config_path, all_files, min_severity)

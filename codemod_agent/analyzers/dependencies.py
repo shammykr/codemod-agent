@@ -76,7 +76,12 @@ def check_dependencies(deps: list[Dependency], sources: dict[str, str]) -> list[
         if isinstance(entry, dict) and entry.get("deprecated"):
             findings.append(
                 make_finding(
-                    "DEP002", dep.manifest, lines, dep.line, dep.line, dep.name,
+                    "DEP002",
+                    dep.manifest,
+                    lines,
+                    dep.line,
+                    dep.line,
+                    dep.name,
                     f"{dep.name} {dep.version} is deprecated/unmaintained.",
                     recommendation=f"Replace {dep.name} with {entry['deprecated']}.",
                 )
@@ -94,7 +99,12 @@ def check_dependencies(deps: list[Dependency], sources: dict[str, str]) -> list[
             severity = Severity.LOW
         findings.append(
             make_finding(
-                "DEP001", dep.manifest, lines, dep.line, dep.line, dep.version,
+                "DEP001",
+                dep.manifest,
+                lines,
+                dep.line,
+                dep.line,
+                dep.version,
                 f"{dep.name} {dep.version} is behind the latest known version {latest}.",
                 severity=severity,
                 recommendation=f"Upgrade {dep.name} to {latest}.",

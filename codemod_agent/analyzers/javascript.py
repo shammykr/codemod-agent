@@ -56,12 +56,18 @@ STRING_RE = re.compile(r"""(['"`])(?:\\.|(?!\1).)*\1""")
 JS_PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     ("JS001", re.compile(r"\bvar\s+"), "'var' is function-scoped and hoisted."),
     # `x == null` is the accepted idiom for null-or-undefined, so it is not flagged.
-    ("JS002", re.compile(r"(?<![=!<>])(?:==|!=)(?!=)(?!\s*(?:null|undefined)\b)"),
-     "Loose equality coerces operand types."),
+    (
+        "JS002",
+        re.compile(r"(?<![=!<>])(?:==|!=)(?!=)(?!\s*(?:null|undefined)\b)"),
+        "Loose equality coerces operand types.",
+    ),
     ("JS003", re.compile(r"\bnew\s+Buffer\s*\("), "The Buffer() constructor is unsafe."),
     ("JS004", re.compile(r"\butil\.isArray\s*\("), "util.isArray is deprecated."),
-    ("JS005", re.compile(r"\b(?:fs\.exists|url\.parse|crypto\.createCipher)\s*\("),
-     "This Node.js API is deprecated."),
+    (
+        "JS005",
+        re.compile(r"\b(?:fs\.exists|url\.parse|crypto\.createCipher)\s*\("),
+        "This Node.js API is deprecated.",
+    ),
 ]
 
 

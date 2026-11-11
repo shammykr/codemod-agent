@@ -83,7 +83,14 @@ class PythonAnalyzer(LanguageAnalyzer):
 
 
 OS_PATH_FUNCS = {
-    "join", "exists", "isfile", "isdir", "basename", "dirname", "abspath", "getsize",
+    "join",
+    "exists",
+    "isfile",
+    "isdir",
+    "basename",
+    "dirname",
+    "abspath",
+    "getsize",
 }
 UNITTEST_ALIASES = {
     "assertEquals": "assertEqual",
@@ -141,7 +148,9 @@ class _ModernizationVisitor(ast.NodeVisitor):
             attr = node.func.attr
             if attr in UNITTEST_ALIASES and isinstance(node.func.value, ast.Name):
                 self._add(
-                    "PY003", node, f"{attr} is a removed alias of {UNITTEST_ALIASES[attr]}.",
+                    "PY003",
+                    node,
+                    f"{attr} is a removed alias of {UNITTEST_ALIASES[attr]}.",
                 )
             elif attr == "has_key" and len(node.args) == 1:
                 self._add("PY007", node, "has_key() was removed in Python 3.")
@@ -162,8 +171,13 @@ class _ModernizationVisitor(ast.NodeVisitor):
                 header = self.lines[node.lineno - 1]
                 self.findings.append(
                     make_finding(
-                        "PY004", self.path, self.lines, node.lineno, node.lineno,
-                        header.strip(), f"class {node.name} inherits from object explicitly.",
+                        "PY004",
+                        self.path,
+                        self.lines,
+                        node.lineno,
+                        node.lineno,
+                        header.strip(),
+                        f"class {node.name} inherits from object explicitly.",
                     )
                 )
         self.generic_visit(node)
@@ -185,7 +199,8 @@ class _ModernizationVisitor(ast.NodeVisitor):
     def _deprecated_module(self, node: ast.stmt, module: str) -> None:
         top = module.split(".")[0]
         self._add(
-            "PY009", node,
+            "PY009",
+            node,
             f"'{top}' is deprecated or removed; migrate to {DEPRECATED_MODULES[top]}.",
         )
 
