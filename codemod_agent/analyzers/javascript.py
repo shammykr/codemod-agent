@@ -6,7 +6,8 @@ import re
 from collections import Counter
 
 from codemod_agent.analyzers.base import LanguageAnalyzer
-from codemod_agent.models import FileInventory
+from codemod_agent.models import FileInventory, Finding
+from codemod_agent.rules import make_finding
 
 REQUIRE_RE = re.compile(r"""require\(\s*['"]([^'"]+)['"]\s*\)""")
 IMPORT_RE = re.compile(r"""^\s*import\s+(?:[^'"]+\s+from\s+)?['"]([^'"]+)['"]""", re.M)
@@ -35,3 +36,33 @@ class JavaScriptAnalyzer(LanguageAnalyzer):
             imports=sorted(imports),
             api_calls=dict(calls.most_common()),
         )
+
+    def detect(self, path: str, source: str) -> list[Finding]:
+        lines = source.splitlines(keepends=True)
+        code_lines = mask_strings(strip_comments(source)).splitlines()
+        findings: list[Finding] = []
+        for lineno, code in enumerate(code_lines, start=1):
+            for rule, pattern, message in JS_PATTERNS:
+                for m in pattern.finditer(code):
+                    target = lines[lineno - 1][m.start() : m.end()]
+                    findings.append(
+                        make_finding(rule, path, lines, lineno, lineno, target, message)
+                    )
+        return findings
+
+
+STRING_RE = re.compile(r"""(['"`])(?:\\.|(?!\1).)*\1""")
+
+JS_PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
+    ("JS001", re.compile(r"\bvar\s+"), "'var' is function-scoped and hoisted."),
+    ("JS002", re.compile(r"(?<![=!<>])(?:==|!=)(?!=)"), "Loose equality coerces operand types."),
+    ("JS003", re.compile(r"\bnew\s+Buffer\s*\("), "The Buffer() constructor is unsafe."),
+    ("JS004", re.compile(r"\butil\.isArray\s*\("), "util.isArray is deprecated."),
+    ("JS005", re.compile(r"\b(?:fs\.exists|url\.parse|crypto\.createCipher)\s*\("),
+     "This Node.js API is deprecated."),
+]
+
+
+def mask_strings(code: str) -> str:
+    """Replace string-literal contents with spaces so patterns don't match inside them."""
+    return STRING_RE.sub(lambda m: m.group(1) + " " * (len(m.group(0)) - 2) + m.group(1), code)

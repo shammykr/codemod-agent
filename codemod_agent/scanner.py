@@ -9,8 +9,8 @@ from pathlib import Path
 
 from codemod_agent import gitutils
 from codemod_agent.analyzers import analyzer_for
-from codemod_agent.analyzers.dependencies import MANIFESTS, parse_manifest
-from codemod_agent.models import Inventory
+from codemod_agent.analyzers.dependencies import MANIFESTS, check_dependencies, parse_manifest
+from codemod_agent.models import Finding, Inventory, Severity
 
 log = logging.getLogger(__name__)
 
@@ -80,3 +80,32 @@ def build_inventory(project: Project) -> Inventory:
             continue
         inv.files.append(analyzer.scan(rel, source))
     return inv
+
+
+SEVERITY_ORDER = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.LOW: 2}
+
+
+def detect(
+    project: Project,
+    inventory: Inventory,
+    disabled_rules: set[str] | None = None,
+    min_severity: Severity = Severity.LOW,
+) -> list[Finding]:
+    """Run every analyzer's detectors plus dependency checks; assign stable ids."""
+    findings: list[Finding] = []
+    for file_inv in inventory.files:
+        analyzer = analyzer_for(file_inv.path)
+        if analyzer is not None:
+            findings.extend(analyzer.detect(file_inv.path, project.read(file_inv.path)))
+    manifests = {d.manifest: project.read(d.manifest) for d in inventory.dependencies}
+    findings.extend(check_dependencies(inventory.dependencies, manifests))
+
+    disabled = disabled_rules or set()
+    limit = SEVERITY_ORDER[min_severity]
+    findings = [
+        f for f in findings if f.rule not in disabled and SEVERITY_ORDER[f.severity] <= limit
+    ]
+    findings.sort(key=lambda f: (f.file, f.line, f.rule))
+    for i, f in enumerate(findings, start=1):
+        f.id = f"F{i:03d}"
+    return findings
