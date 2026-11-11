@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codemod_agent.changes import apply_change, generate_change
+from codemod_agent.changes import apply_change, generate_change, locate
 from codemod_agent.diffing import combine, unified_diff
 from codemod_agent.llm import LLMProvider
 from codemod_agent.models import ChangeResult, Finding
@@ -35,6 +36,32 @@ class RunReport:
         return [r for r in self.results if r.status == "applied"]
 
 
+def failure_line(output: str) -> str:
+    """Pick the most informative line from a failing command's output."""
+    lines = output.splitlines()
+    return next((ln.strip() for ln in reversed(lines) if "Error" in ln), lines[-1] if lines else "")
+
+
+def reanchor(finding: Finding, content: str, shift: int) -> Finding | None:
+    """Map ``finding`` onto the file's current content after earlier edits.
+
+    Earlier accepted changes may have shifted lines or rewritten part of the same
+    line. If the matched expression is still present at the shifted location, the
+    finding is refreshed with the current source lines; otherwise it is a conflict.
+    """
+    lines = content.splitlines(keepends=True)
+    expected = finding.line + shift
+    if locate(lines, finding.snippet, expected) is not None:
+        return dataclasses.replace(finding, line=expected)
+    n = finding.end_line - finding.line + 1
+    current = "".join(lines[expected - 1 : expected - 1 + n])
+    if finding.target and finding.target in current:
+        return dataclasses.replace(
+            finding, line=expected, end_line=expected + n - 1, snippet=current
+        )
+    return None
+
+
 def run_command(cmd: str, cwd: Path, timeout: float) -> CommandResult:
     """Run the user's build/test command through the shell."""
     try:
@@ -43,7 +70,7 @@ def run_command(cmd: str, cwd: Path, timeout: float) -> CommandResult:
         )
     except subprocess.TimeoutExpired:
         return CommandResult(False, f"timed out after {timeout:.0f}s")
-    tail = "\n".join((proc.stdout + proc.stderr).strip().splitlines()[-5:])
+    tail = "\n".join((proc.stdout + proc.stderr).strip().splitlines()[-20:])
     return CommandResult(proc.returncode == 0, tail)
 
 
@@ -108,12 +135,20 @@ def run(
         if on_result:
             on_result(result)
 
+    shifts: dict[str, int] = {}  # net lines added per file by accepted changes so far
     try:
-        for finding in findings:
-            if not finding.autofix:
+        for original in findings:
+            if not original.autofix:
                 continue
-            base = ws.get(finding.file)
-            result = ChangeResult(finding.id, finding.rule, finding.file, "no-change")
+            base = ws.get(original.file)
+            result = ChangeResult(original.id, original.rule, original.file, "no-change")
+            anchored = reanchor(original, base, shifts.get(original.file, 0))
+            if anchored is None:
+                result.status = "conflict"
+                result.detail = "code changed by an earlier edit"
+                record(result)
+                continue
+            finding = anchored
             try:
                 change = generate_change(provider, finding, base)
             except Exception as exc:  # provider/network errors shouldn't abort the run
@@ -127,7 +162,7 @@ def run(
             updated = apply_change(base, change)
             if updated is None:
                 result.status = "conflict"
-                result.detail = "original lines changed by an earlier edit"
+                result.detail = "code changed by an earlier edit"
                 record(result)
                 continue
             error = validate(finding.file, updated)
@@ -141,10 +176,12 @@ def run(
                 if not outcome.ok:
                     ws.write_disk(finding.file, base)  # roll back this change only
                     result.status = "rejected-tests"
-                    result.detail = outcome.output.splitlines()[-1] if outcome.output else ""
+                    result.detail = failure_line(outcome.output)
                     record(result)
                     continue
             ws.current[finding.file] = updated
+            delta = len(updated.splitlines()) - len(base.splitlines())
+            shifts[finding.file] = shifts.get(finding.file, 0) + delta
             result.status = "applied"
             result.detail = "tests passed" if test_command else "validated"
             result.diff = unified_diff(finding.file, base, updated)
