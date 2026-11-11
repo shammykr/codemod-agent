@@ -48,3 +48,15 @@ def tracked_files(path: Path) -> list[Path]:
     if not out:
         return []
     return [root / p for p in out.split("\0") if p]
+
+
+def check_patch(root: Path, patch: str) -> str | None:
+    """Dry-run ``git apply --check``; return an error message or None if it applies cleanly."""
+    try:
+        proc = subprocess.run(
+            ["git", "apply", "--check", "-"],
+            cwd=root, input=patch, capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return "git not installed"
+    return proc.stderr.strip() or None if proc.returncode else None
