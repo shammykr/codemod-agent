@@ -1,0 +1,17 @@
+"""Analyzer interface. Add a new language by subclassing ``LanguageAnalyzer``."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import ClassVar
+
+from codemod_agent.models import FileInventory
+
+
+class LanguageAnalyzer(ABC):
+    language: ClassVar[str]
+    extensions: ClassVar[tuple[str, ...]]
+
+    @abstractmethod
+    def scan(self, path: str, source: str) -> FileInventory:
+        """Build the import / API-usage inventory for one file."""
