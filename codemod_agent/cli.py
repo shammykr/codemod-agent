@@ -156,7 +156,10 @@ def generate(
     test_cmd = test_cmd or cfg.build.test_command
     if rules:
         findings = [f for f in findings if f.rule in rules]
-    llm = get_provider(cfg.llm)
+    try:
+        llm = get_provider(cfg.llm)
+    except (RuntimeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
     todo = [f for f in findings if f.autofix]
     click.secho(
         f"{len(findings)} findings, {len(todo)} automatable; LLM provider: {llm.name}"
